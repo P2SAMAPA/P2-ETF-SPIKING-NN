@@ -29,34 +29,27 @@ class SpikingNet(nn.Module):
         out = torch.stack(out_spikes, dim=1).mean(dim=1)
         return out
 
-def spike_encode_percentile(returns_series, percentile=90, vol_window=20):
-    """Spike when return exceeds rolling volatility threshold at given percentile."""
-    # Use rolling standard deviation as volatility proxy
-    vol = returns_series.rolling(vol_window).std()
-    # Threshold at percentile of historical absolute returns (or use vol * mult)
-    # Simpler: use fixed percentile of the series itself
-    thresh = returns_series.abs().rolling(vol_window).quantile(percentile/100.0)
-    thresh = thresh.fillna(returns_series.abs().quantile(percentile/100.0))
-    spikes = (returns_series > thresh).astype(int)
-    return spikes.fillna(0).astype(int).values
+def spike_encode(returns_series, threshold=0.005):
+    """Convert return series to spike trains: 1 if absolute return > threshold."""
+    return (np.abs(returns_series) > threshold).astype(int)
 
-def create_spike_dataset(returns_series, window, seq_len=10, percentile=90, vol_window=20):
-    if len(returns_series) < window + seq_len + 5:
+def create_spike_dataset(returns_series, window, seq_len=10, spike_threshold=0.005):
+    """Create sliding windows of spike trains."""
+    if len(returns_series) < window + seq_len + 1:
         return None, None
-    # Take the last `window` days
-    returns_win = returns_series.iloc[-window:]
-    # Compute spikes on the whole window
-    spikes = spike_encode_percentile(returns_win, percentile, vol_window)
-    if len(spikes) < seq_len + 2:
+    returns_window = returns_series.iloc[-window:]
+    spikes = spike_encode(returns_window, spike_threshold).values
+    if len(spikes) < seq_len + 1:
         return None, None
     X, y = [], []
     for i in range(seq_len, len(spikes)-1):
         X.append(spikes[i-seq_len:i])
-        y.append(returns_win.iloc[i+1])
+        y.append(returns_window.iloc[i+1])
+    X = np.array(X, dtype=np.float32)
+    y = np.array(y, dtype=np.float32)
     if len(X) == 0:
         return None, None
-    X = np.array(X, dtype=np.float32).reshape(-1, seq_len, 1)
-    y = np.array(y, dtype=np.float32)
+    X = X.reshape(-1, seq_len, 1)
     return X, y
 
 def train_snn(X_train, y_train, input_size=1, hidden_size=32, output_size=1,
