@@ -6,7 +6,7 @@ from datetime import datetime
 import torch
 import config
 import data_manager
-from spiking_model import spike_encode, create_spike_dataset, train_snn, predict_snn
+from spiking_model import create_spike_dataset, train_snn, predict_snn
 
 def convert_to_serializable(obj):
     if isinstance(obj, np.ndarray):
@@ -51,29 +51,24 @@ def main():
             for etf in tickers:
                 if etf not in returns.columns:
                     continue
-                # Get returns for this ETF over the window
                 ret_series = returns[etf].iloc[-win:]
                 # Create spike dataset
-                # We need to compute spikes on the window and then create sequences.
-                # Let's use a helper that directly works on the series.
-                # We'll call create_spike_dataset with a dummy returns_df (but single column)
-                import pandas as pd
-                ret_df = ret_series.to_frame()
-                X, y = create_spike_dataset(ret_df, win, seq_len=config.INPUT_SIZE,
+                X, y = create_spike_dataset(ret_series, win,
+                                            seq_len=config.INPUT_SIZE,
                                             threshold_mult=config.THRESHOLD_MULT,
                                             vol_window=config.VOL_WINDOW)
                 if X is None or len(X) < 20:
                     continue
-                # Split into train/validation (80/20)
+                # Split into train/val (80/20)
                 split = int(0.8 * len(X))
                 X_train, X_val = X[:split], X[split:]
                 y_train, y_val = y[:split], y[split:]
-                # Train SNN
+                # Train SNN (num_steps = input_size = config.INPUT_SIZE)
                 model = train_snn(X_train, y_train,
                                   input_size=1,
                                   hidden_size=config.HIDDEN_NEURONS,
                                   output_size=1,
-                                  num_steps=config.TIME_STEPS,
+                                  num_steps=config.INPUT_SIZE,   # critical fix
                                   tau_mem=config.TAU_MEM,
                                   tau_syn=config.TAU_SYN,
                                   threshold=config.THRESHOLD,
@@ -81,7 +76,7 @@ def main():
                                   epochs=config.EPOCHS,
                                   batch_size=config.BATCH_SIZE,
                                   device=device)
-                # Predict for the most recent input (last sequence of the window)
+                # Predict for the most recent input (last sequence)
                 last_X = X[-1:].reshape(1, config.INPUT_SIZE, 1)
                 pred = predict_snn(model, last_X)[0]
                 etf_scores[etf] = pred
