@@ -17,8 +17,6 @@ def convert_to_serializable(obj):
         return int(obj)
     if isinstance(obj, dict):
         return {k: convert_to_serializable(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [convert_to_serializable(i) for i in obj]
     return obj
 
 def main():
@@ -30,6 +28,10 @@ def main():
     all_results = {}
     today = datetime.now().strftime("%Y-%m-%d")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    # Use percentile encoding (override config if not present)
+    spike_percentile = getattr(config, 'SPIKE_PERCENTILE', 85)
+    vol_window = getattr(config, 'VOL_WINDOW', 20)
 
     for universe_name, tickers in config.UNIVERSES.items():
         print(f"\n=== Universe: {universe_name} (Spiking Neural Network) ===")
@@ -52,23 +54,16 @@ def main():
                 if etf not in returns.columns:
                     continue
                 ret_series = returns[etf].iloc[-win:]
-                # Create spike dataset
                 X, y = create_spike_dataset(ret_series, win,
                                             seq_len=config.INPUT_SIZE,
-                                            threshold_mult=config.THRESHOLD_MULT,
-                                            vol_window=config.VOL_WINDOW)
+                                            percentile=spike_percentile,
+                                            vol_window=vol_window)
                 if X is None or len(X) < 10:
-                    # Optionally print why
-                    if X is None:
-                        print(f"    {etf}: no data from create_spike_dataset")
-                    else:
-                        print(f"    {etf}: only {len(X)} samples (need 10)")
+                    print(f"    {etf}: no data from create_spike_dataset")
                     continue
-                # Split into train/val (80/20)
                 split = int(0.8 * len(X))
                 X_train, X_val = X[:split], X[split:]
                 y_train, y_val = y[:split], y[split:]
-                # Train SNN (num_steps = input_size = config.INPUT_SIZE)
                 try:
                     model = train_snn(X_train, y_train,
                                       input_size=1,
@@ -82,13 +77,11 @@ def main():
                                       epochs=config.EPOCHS,
                                       batch_size=config.BATCH_SIZE,
                                       device=device)
-                    # Predict for the most recent input (last sequence)
                     last_X = X[-1:].reshape(1, config.INPUT_SIZE, 1)
                     pred = predict_snn(model, last_X)[0]
                     etf_scores[etf] = pred
                 except Exception as e:
                     print(f"    {etf}: training failed: {e}")
-                    continue
             window_results[win] = etf_scores
             for etf, score in etf_scores.items():
                 if etf not in best_per_etf or score > best_per_etf[etf][0]:
