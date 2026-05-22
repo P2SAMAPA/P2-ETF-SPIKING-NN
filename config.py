@@ -20,16 +20,12 @@ UNIVERSES = {
 # Rolling windows (days)
 WINDOWS = [63, 252, 504, 1008, 2016]
 
-# Spike encoding parameters
-SPIKE_THRESHOLD = 0.005   # absolute return threshold (0.5%) to trigger spike
-
-# Spiking neural network parameters
+# Spiking network parameters
 INPUT_SIZE = 10           # number of past days used as input spike train length
 HIDDEN_NEURONS = 32
-OUTPUT_NEURONS = 1
-TAU_MEM = 20.0            # membrane time constant (ms)
-TAU_SYN = 5.0             # synaptic time constant
-THRESHOLD = 0.5           # spike threshold (neuron firing)
+TAU_MEM = 20.0
+TAU_SYN = 5.0
+THRESHOLD = 0.5
 LEARNING_RATE = 1e-3
 EPOCHS = 50
 BATCH_SIZE = 32
