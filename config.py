@@ -22,6 +22,7 @@ WINDOWS = [63, 252, 504, 1008, 2016]
 
 # Spike encoding parameters
 THRESHOLD_MULT = 1.2      # multiple of moving average volatility to trigger spike
+SPIKE_PERCENTILE = 85     # instead of THRESHOLD_MULT
 VOL_WINDOW = 10           # window for rolling volatility
 
 # Spiking neural network parameters
