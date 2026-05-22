@@ -17,8 +17,6 @@ def convert_to_serializable(obj):
         return int(obj)
     if isinstance(obj, dict):
         return {k: convert_to_serializable(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [convert_to_serializable(i) for i in obj]
     return obj
 
 def main():
@@ -52,36 +50,30 @@ def main():
                 if etf not in returns.columns:
                     continue
                 ret_series = returns[etf].iloc[-win:]
-                # Create spike dataset
                 X, y = create_spike_dataset(ret_series, win,
                                             seq_len=config.INPUT_SIZE,
-                                            spike_threshold=config.SPIKE_THRESHOLD)
+                                            percentile=85)
                 if X is None or len(X) < 10:
                     print(f"    {etf}: no data from create_spike_dataset (samples={len(X) if X is not None else 0})")
                     continue
                 split = int(0.8 * len(X))
                 X_train, X_val = X[:split], X[split:]
                 y_train, y_val = y[:split], y[split:]
-                # Train SNN (num_steps = input_size)
-                try:
-                    model = train_snn(X_train, y_train,
-                                      input_size=1,
-                                      hidden_size=config.HIDDEN_NEURONS,
-                                      output_size=1,
-                                      num_steps=config.INPUT_SIZE,
-                                      tau_mem=config.TAU_MEM,
-                                      tau_syn=config.TAU_SYN,
-                                      threshold=config.THRESHOLD,
-                                      lr=config.LEARNING_RATE,
-                                      epochs=config.EPOCHS,
-                                      batch_size=config.BATCH_SIZE,
-                                      device=device)
-                    last_X = X[-1:].reshape(1, config.INPUT_SIZE, 1)
-                    pred = predict_snn(model, last_X)[0]
-                    etf_scores[etf] = pred
-                except Exception as e:
-                    print(f"    {etf}: training failed: {e}")
-                    continue
+                model = train_snn(X_train, y_train,
+                                  input_size=1,
+                                  hidden_size=config.HIDDEN_NEURONS,
+                                  output_size=1,
+                                  num_steps=config.INPUT_SIZE,
+                                  tau_mem=config.TAU_MEM,
+                                  tau_syn=config.TAU_SYN,
+                                  threshold=config.THRESHOLD,
+                                  lr=config.LEARNING_RATE,
+                                  epochs=config.EPOCHS,
+                                  batch_size=config.BATCH_SIZE,
+                                  device=device)
+                last_X = X[-1:].reshape(1, config.INPUT_SIZE, 1)
+                pred = predict_snn(model, last_X)[0]
+                etf_scores[etf] = pred
             window_results[win] = etf_scores
             for etf, score in etf_scores.items():
                 if etf not in best_per_etf or score > best_per_etf[etf][0]:
