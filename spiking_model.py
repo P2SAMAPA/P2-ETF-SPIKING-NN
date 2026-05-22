@@ -29,16 +29,19 @@ class SpikingNet(nn.Module):
         out = torch.stack(out_spikes, dim=1).mean(dim=1)
         return out
 
-def spike_encode(returns_series, threshold=0.002):
-    """Return 1 if absolute return > fixed threshold (0.2%)."""
+def spike_encode(returns_series, threshold=0.001):
+    """Convert return series to spike trains: 1 if |return| > threshold."""
     return (np.abs(returns_series) > threshold).astype(int)
 
-def create_spike_dataset(returns_series, window, seq_len=10, spike_threshold=0.002):
-    """Create sliding windows of spike trains. Uses fixed threshold."""
-    if len(returns_series) < window + seq_len + 1:
+def create_spike_dataset(returns_series, window, seq_len=10, spike_threshold=0.001):
+    """Create sliding windows of spike trains. Drop NaNs. Use low threshold."""
+    series_clean = returns_series.dropna()
+    if len(series_clean) < window + seq_len + 1:
         return None, None
-    returns_window = returns_series.iloc[-window:]
+    returns_window = series_clean.iloc[-window:]
     spikes = spike_encode(returns_window, spike_threshold).values
+    if len(spikes) < seq_len + 1:
+        return None, None
     X, y = [], []
     for i in range(seq_len, len(spikes)-1):
         X.append(spikes[i-seq_len:i])
