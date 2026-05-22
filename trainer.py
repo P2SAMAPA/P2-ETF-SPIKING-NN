@@ -50,9 +50,7 @@ def main():
                 if etf not in returns.columns:
                     continue
                 ret_series = returns[etf].iloc[-win:]
-                X, y = create_spike_dataset(ret_series, win,
-                                            seq_len=config.INPUT_SIZE,
-                                            spike_threshold=0.002)   # fixed 0.2% threshold
+                X, y = create_spike_dataset(ret_series, win, seq_len=config.INPUT_SIZE, spike_threshold=config.SPIKE_THRESHOLD)
                 if X is None or len(X) < 10:
                     print(f"    {etf}: no data from create_spike_dataset (samples={len(X) if X is not None else 0})")
                     continue
