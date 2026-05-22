@@ -4,7 +4,6 @@ import torch.optim as optim
 import numpy as np
 import pandas as pd
 import snntorch as snn
-from snntorch import spikegen
 
 class SpikingNet(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, num_steps, tau_mem=20.0, tau_syn=5.0, threshold=0.5):
@@ -16,7 +15,6 @@ class SpikingNet(nn.Module):
         self.lif2 = snn.Leaky(tau_mem=tau_mem, tau_syn=tau_syn, spike_grad=True, threshold=threshold)
 
     def forward(self, x):
-        # x: (batch, num_steps, input_size)
         batch_size = x.size(0)
         mem1 = self.lif1.init_leaky()
         mem2 = self.lif2.init_leaky()
@@ -31,36 +29,34 @@ class SpikingNet(nn.Module):
         out = torch.stack(out_spikes, dim=1).mean(dim=1)
         return out
 
-def spike_encode(returns_series, threshold_mult=1.5, vol_window=20):
-    """Convert return series to spike trains based on rolling volatility threshold."""
+def spike_encode_percentile(returns_series, percentile=90, vol_window=20):
+    """Spike when return exceeds rolling volatility threshold at given percentile."""
+    # Use rolling standard deviation as volatility proxy
     vol = returns_series.rolling(vol_window).std()
-    threshold = vol * threshold_mult
-    spikes = (returns_series > threshold).astype(int)
+    # Threshold at percentile of historical absolute returns (or use vol * mult)
+    # Simpler: use fixed percentile of the series itself
+    thresh = returns_series.abs().rolling(vol_window).quantile(percentile/100.0)
+    thresh = thresh.fillna(returns_series.abs().quantile(percentile/100.0))
+    spikes = (returns_series > thresh).astype(int)
     return spikes.fillna(0).astype(int).values
 
-def create_spike_dataset(returns_series, window, seq_len=10, threshold_mult=1.5, vol_window=20):
-    """
-    For a single ETF (pandas Series), create sliding windows of spike trains.
-    Returns X (n_samples, seq_len, 1) and y (n_samples,).
-    """
-    if len(returns_series) < window + seq_len + 1:
+def create_spike_dataset(returns_series, window, seq_len=10, percentile=90, vol_window=20):
+    if len(returns_series) < window + seq_len + 5:
         return None, None
-    # Use last `window` days of returns
-    returns_window = returns_series.iloc[-window:]
-    # Compute spikes on the window
-    spikes = spike_encode(returns_window, threshold_mult, vol_window)
-    if len(spikes) < seq_len + 1:
+    # Take the last `window` days
+    returns_win = returns_series.iloc[-window:]
+    # Compute spikes on the whole window
+    spikes = spike_encode_percentile(returns_win, percentile, vol_window)
+    if len(spikes) < seq_len + 2:
         return None, None
     X, y = [], []
     for i in range(seq_len, len(spikes)-1):
         X.append(spikes[i-seq_len:i])
-        y.append(returns_window.iloc[i+1])
-    X = np.array(X, dtype=np.float32)
-    y = np.array(y, dtype=np.float32)
+        y.append(returns_win.iloc[i+1])
     if len(X) == 0:
         return None, None
-    # Reshape to (batch, seq_len, 1) for SNN input (1 feature per time step)
-    X = X.reshape(-1, seq_len, 1)
+    X = np.array(X, dtype=np.float32).reshape(-1, seq_len, 1)
+    y = np.array(y, dtype=np.float32)
     return X, y
 
 def train_snn(X_train, y_train, input_size=1, hidden_size=32, output_size=1,
