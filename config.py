@@ -21,18 +21,15 @@ UNIVERSES = {
 WINDOWS = [63, 252, 504, 1008, 2016]
 
 # Spike encoding parameters
-THRESHOLD_MULT = 1.2      # multiple of moving average volatility to trigger spike
-SPIKE_PERCENTILE = 85     # instead of THRESHOLD_MULT
-VOL_WINDOW = 10           # window for rolling volatility
+SPIKE_THRESHOLD = 0.005   # absolute return threshold (0.5%) to trigger spike
 
 # Spiking neural network parameters
 INPUT_SIZE = 10           # number of past days used as input spike train length
 HIDDEN_NEURONS = 32
 OUTPUT_NEURONS = 1
-TIME_STEPS = 20           # simulation time steps per input sample
 TAU_MEM = 20.0            # membrane time constant (ms)
 TAU_SYN = 5.0             # synaptic time constant
-THRESHOLD = 0.5           # spike threshold
+THRESHOLD = 0.5           # spike threshold (neuron firing)
 LEARNING_RATE = 1e-3
 EPOCHS = 50
 BATCH_SIZE = 32
