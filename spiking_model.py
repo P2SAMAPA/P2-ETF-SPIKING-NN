@@ -29,24 +29,16 @@ class SpikingNet(nn.Module):
         out = torch.stack(out_spikes, dim=1).mean(dim=1)
         return out
 
-def spike_encode(returns_series, percentile=70):
-    """Convert return series to spike trains: 1 if absolute return > threshold (percentile)."""
-    abs_ret = np.abs(returns_series)
-    threshold = np.percentile(abs_ret, percentile)
-    # If no spikes (all returns zero), use a very low threshold
-    if threshold == 0:
-        threshold = 0.001
-    spikes = (abs_ret > threshold).astype(int)
-    return spikes
+def spike_encode(returns_series, threshold=0.002):
+    """Return 1 if absolute return > fixed threshold (0.2%)."""
+    return (np.abs(returns_series) > threshold).astype(int)
 
-def create_spike_dataset(returns_series, window, seq_len=10, percentile=70):
-    """Create sliding windows of spike trains. Drop NaNs."""
+def create_spike_dataset(returns_series, window, seq_len=10, spike_threshold=0.002):
+    """Create sliding windows of spike trains. Uses fixed threshold."""
     if len(returns_series) < window + seq_len + 1:
         return None, None
-    returns_window = returns_series.iloc[-window:].dropna()
-    if len(returns_window) < seq_len + 1:
-        return None, None
-    spikes = spike_encode(returns_window, percentile).values
+    returns_window = returns_series.iloc[-window:]
+    spikes = spike_encode(returns_window, spike_threshold).values
     X, y = [], []
     for i in range(seq_len, len(spikes)-1):
         X.append(spikes[i-seq_len:i])
