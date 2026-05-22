@@ -57,29 +57,38 @@ def main():
                                             seq_len=config.INPUT_SIZE,
                                             threshold_mult=config.THRESHOLD_MULT,
                                             vol_window=config.VOL_WINDOW)
-                if X is None or len(X) < 20:
+                if X is None or len(X) < 10:
+                    # Optionally print why
+                    if X is None:
+                        print(f"    {etf}: no data from create_spike_dataset")
+                    else:
+                        print(f"    {etf}: only {len(X)} samples (need 10)")
                     continue
                 # Split into train/val (80/20)
                 split = int(0.8 * len(X))
                 X_train, X_val = X[:split], X[split:]
                 y_train, y_val = y[:split], y[split:]
                 # Train SNN (num_steps = input_size = config.INPUT_SIZE)
-                model = train_snn(X_train, y_train,
-                                  input_size=1,
-                                  hidden_size=config.HIDDEN_NEURONS,
-                                  output_size=1,
-                                  num_steps=config.INPUT_SIZE,   # critical fix
-                                  tau_mem=config.TAU_MEM,
-                                  tau_syn=config.TAU_SYN,
-                                  threshold=config.THRESHOLD,
-                                  lr=config.LEARNING_RATE,
-                                  epochs=config.EPOCHS,
-                                  batch_size=config.BATCH_SIZE,
-                                  device=device)
-                # Predict for the most recent input (last sequence)
-                last_X = X[-1:].reshape(1, config.INPUT_SIZE, 1)
-                pred = predict_snn(model, last_X)[0]
-                etf_scores[etf] = pred
+                try:
+                    model = train_snn(X_train, y_train,
+                                      input_size=1,
+                                      hidden_size=config.HIDDEN_NEURONS,
+                                      output_size=1,
+                                      num_steps=config.INPUT_SIZE,
+                                      tau_mem=config.TAU_MEM,
+                                      tau_syn=config.TAU_SYN,
+                                      threshold=config.THRESHOLD,
+                                      lr=config.LEARNING_RATE,
+                                      epochs=config.EPOCHS,
+                                      batch_size=config.BATCH_SIZE,
+                                      device=device)
+                    # Predict for the most recent input (last sequence)
+                    last_X = X[-1:].reshape(1, config.INPUT_SIZE, 1)
+                    pred = predict_snn(model, last_X)[0]
+                    etf_scores[etf] = pred
+                except Exception as e:
+                    print(f"    {etf}: training failed: {e}")
+                    continue
             window_results[win] = etf_scores
             for etf, score in etf_scores.items():
                 if etf not in best_per_etf or score > best_per_etf[etf][0]:
