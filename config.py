@@ -20,6 +20,8 @@ UNIVERSES = {
 # Rolling windows (days)
 WINDOWS = [63, 252, 504, 1008, 2016]
 
+SPIKE_THRESHOLD = 0.002  # Bug 4 fix: move hardcoded literal to config
+
 # Spiking network parameters
 INPUT_SIZE = 10           # number of past days used as input spike train length
 HIDDEN_NEURONS = 32
