@@ -21,8 +21,8 @@ UNIVERSES = {
 WINDOWS = [63, 252, 504, 1008, 2016]
 
 # Spike encoding parameters
-THRESHOLD_MULT = 1.5      # multiple of moving average volatility to trigger spike
-VOL_WINDOW = 20           # window for rolling volatility
+THRESHOLD_MULT = 1.2      # multiple of moving average volatility to trigger spike
+VOL_WINDOW = 10           # window for rolling volatility
 
 # Spiking neural network parameters
 INPUT_SIZE = 10           # number of past days used as input spike train length
