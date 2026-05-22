@@ -52,7 +52,7 @@ def main():
                 ret_series = returns[etf].iloc[-win:]
                 X, y = create_spike_dataset(ret_series, win,
                                             seq_len=config.INPUT_SIZE,
-                                            percentile=85)
+                                            percentile=70)   # <-- changed from 85 to 70
                 if X is None or len(X) < 10:
                     print(f"    {etf}: no data from create_spike_dataset (samples={len(X) if X is not None else 0})")
                     continue
