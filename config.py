@@ -20,6 +20,9 @@ UNIVERSES = {
 # Rolling windows (days)
 WINDOWS = [63, 252, 504, 1008, 2016]
 
+THRESHOLD_MULT = 1.0   # multiplier for rolling volatility
+VOL_WINDOW = 252       # window length for volatility calculation
+
 # ── Spike encoding ──────────────────────────────────────────────────────────
 # BUG FIX (config): spike_threshold was hardcoded 0.002 in trainer.py.
 # Moved here so it is tunable. 0.002 (0.2%) fires on ~60% of daily ETF returns
